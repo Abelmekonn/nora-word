@@ -14,14 +14,14 @@
   <DisplayName DefaultValue="Nora Legal"/>
   <Description DefaultValue="AI-powered legal assistant for drafting, reviewing, and improving documents directly in Microsoft Word."/>
 
-  <IconUrl DefaultValue="https://word.noralegal.com/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://word.noralegal.com/assets/icon-80.png"/>
+  <IconUrl DefaultValue="https://nora-word-jet.vercel.app/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://nora-word-jet.vercel.app/assets/icon-80.png"/>
 
   <SupportUrl DefaultValue="https://wequity.io/support"/>
   <PrivacyUrl DefaultValue="https://wequity.io/privacy"/>
 
   <AppDomains>
-    <AppDomain>https://word.noralegal.com</AppDomain>
+    <AppDomain>https://nora-word-jet.vercel.app</AppDomain>
     <!-- Optional: include Supabase/Auth redirect origins if you navigate during auth -->
     <!-- <AppDomain>https://REPLACE-WITH-SUPABASE-PROJECT.supabase.co</AppDomain> -->
     <!-- Optional: include AI worker host if you open it in a new window -->
@@ -33,7 +33,7 @@
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://word.noralegal.com/taskpane.html"/>
+    <SourceLocation DefaultValue="https://nora-word-jet.vercel.app/taskpane.html"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
@@ -110,13 +110,13 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://word.noralegal.com/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://word.noralegal.com/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://word.noralegal.com/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://word.noralegal.com/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://word.noralegal.com/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://nora-word-jet.vercel.app/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://nora-word-jet.vercel.app/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Nora Legal"/>
