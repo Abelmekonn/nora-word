@@ -40,6 +40,10 @@ export default defineConfig(({ command }) => {
     server,
     build: {
       rollupOptions: {
+        input: {
+          index: path.resolve(__dirname, "index.html"),
+          taskpane: path.resolve(__dirname, "taskpane.html"),
+        },
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
@@ -65,7 +69,10 @@ export default defineConfig(({ command }) => {
               return "react-vendor";
             }
 
-            return "vendor";
+            // Let Rollup decide default chunking for everything else.
+            // Forcing a monolithic "vendor" chunk can introduce circular chunk
+            // dependencies (e.g., vendor <-> docx) that break ESM initialization.
+            return;
           },
         },
       },

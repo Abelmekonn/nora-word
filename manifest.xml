@@ -14,15 +14,19 @@
   <Description DefaultValue="AI-powered assistant for notary practices: drafting, redlining, and compliance."/>
 
   <!-- Icon for the add-in -->
-  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png"/>
+  <IconUrl DefaultValue="https://nora-word-jet.vercel.app/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://nora-word-jet.vercel.app/assets/icon-80.png"/>
 
   <!-- Support URL -->
   <SupportUrl DefaultValue="https://wequity.io/support"/>
 
   <!-- Domains that the add-in can navigate to -->
   <AppDomains>
-    <AppDomain>https://localhost:3000</AppDomain>
+    <AppDomain>https://nora-word-jet.vercel.app</AppDomain>
+    <AppDomain>https://appsforoffice.microsoft.com</AppDomain>
+    <AppDomain>https://cdn.tailwindcss.com</AppDomain>
+    <AppDomain>https://fonts.googleapis.com</AppDomain>
+    <AppDomain>https://fonts.gstatic.com</AppDomain>
   </AppDomains>
 
   <!-- Hosts this add-in supports -->
@@ -32,7 +36,7 @@
 
   <!-- Default settings for the task pane -->
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html"/>
+    <SourceLocation DefaultValue="https://nora-word-jet.vercel.app/taskpane.html"/>
   </DefaultSettings>
 
   <!-- Permissions required by the add-in -->
@@ -101,13 +105,13 @@
     <!-- Resources used by the add-in -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://nora-word-jet.vercel.app/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://nora-word-jet.vercel.app/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://nora-word-jet.vercel.app/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Nora Legal"/>
