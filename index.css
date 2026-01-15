@@ -1,0 +1,48 @@
+/* Nora Word Application Styles */
+
+/* Base resets */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* Additional utility classes can be added here as needed */
+
+/* -------------------------------------------------------------------------- */
+/* Token chips for #skills and @agents (Apple HIG-inspired)                    */
+/* Explicitly requested by the user: visually style tokens as rounded labels   */
+/* Choice by assistant: vanilla CSS to avoid relying on Tailwind @apply here   */
+/* -------------------------------------------------------------------------- */
+.token-chip {
+  display: inline-block;            /* behave like a compact pill */
+  vertical-align: baseline;         /* align smoothly within text lines */
+  border-radius: 9999px;            /* rounded-full appearance */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;                 /* py-[2px] px-2 */
+  font-size: 13px;                  /* text-[13px] */
+  line-height: 20px;                /* leading-5 */
+  font-weight: 500;                 /* font-medium */
+  white-space: nowrap;              /* avoid breaking tokens mid-word */
+}
+
+.token-agent {
+  background-color: #DBEAFE;        /* tailwind blue-100 */
+  color: #1D4ED8;                   /* tailwind blue-700 */
+}
+
+.token-skill {
+  background-color: #D1FAE5;        /* tailwind emerald-100 */
+  color: #047857;                   /* tailwind emerald-700 */
+}

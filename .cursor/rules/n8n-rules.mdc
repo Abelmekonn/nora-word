@@ -1,0 +1,30 @@
+---
+alwaysApply: false
+description: n8n rules when creating or calling N8N workflows
+---
+For user actions that trigger an n8n workflow, implement the following:
+Create an n8n workflow with “Header” authorization. Never create a public n8n workflow (i.e., with None as authorization). Choose the header named “Header Auth X-Webhook-Secret”. Never overwrite its value.
+
+The frontend should call an edge function. Do not call n8n directly from the frontend. Why? Because a secret is required and must not be exposed client-side.
+Inside the edge function, call n8n using the snippet below (where `WEBHOOK_URL` is your actual n8n webhook URL; it can be hardcoded in the edge function). Refer to `supabase/functions/feedback-upload` for a full example.
+    const forwardHeaders: Record<string, string> = { "Content-Type": "application/json" };
+
+    const WEBHOOK_SECRET = Deno.env.get("N8N_X_WEBHOOK_SECRET");
+
+
+    forwardHeaders["X-Webhook-Secret"] = WEBHOOK_SECRET;
+
+
+    const forwardBody = {
+      ...
+    };
+
+    const forwardRes = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: forwardHeaders,
+      body: JSON.stringify(forwardBody),
+    });
+
+      headers: forwardHeaders,
+      body: JSON.stringify(forwardBody),
+    });

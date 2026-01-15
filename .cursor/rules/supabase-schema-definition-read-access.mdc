@@ -1,0 +1,14 @@
+---
+description: Supabase full DB schema and definition read access
+alwaysApply: false
+---
+
+When table schema and definition is needed and there is no access to mcp (meaning database is needed for schema read-only), make sure to update the src/integrations/supabase/types.ts file by running:
+
+npx supabase gen types typescript --project-id htbkflogiaxswzpxtsoz > src/integrations/supabase/types.ts
+
+After running this command, you can view the full updated database schema in:
+
+src/integrations/supabase/types.ts
+
+Note that when only schema definition is needed, it's better to use this method even if mcp is available since it's faster.

@@ -1,0 +1,67 @@
+---
+description: How and when to subscribe to real-time channels.
+alwaysApply: false
+---
+
+When fetching a list of items, it is sometimes useful to subscribe to a real-time channel. To do so, you can use the helper function in `utils/SupabaseUtils.ts`. Never set two subscription to same table, it won't work (it will cancel the first subscription) use filters wisely.
+
+import { createRealTimeUpdates } from "@/utils/SupabaseUtils";
+import { useAuth } from "@/contexts/AuthContext";
+import { updateOrInsertInListWithId } from "@/utils/Utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+
+const { selectedWorkspace } = useWorkspace();
+const channelRef = useRef<any>(null);
+const [itemList, setItemList] = useState([]);
+
+useEffect(() => {
+        setItemList(fetchInitialList());
+        ...
+        let currentChannel: any;
+
+        createRealTimeUpdates(
+            {
+                table: "itemTable",
+                onFileChange: (newRecord) => {
+                        if (newRecord.workspace_id !== selectedWorkspace.id) return;
+                        setItemList((prev) => updateOrInsertInListWithId(prev, newRecord));
+                        },
+                 channelRef,
+                 onSuccess: (channel) => {
+                    currentChannel = channel; // ✅ Store the channel instance when successfully subscribed
+                },
+                selectedWorkspaceId: selectedWorkspace.id
+            }
+        );
+        return () => {
+            if (currentChannel) {
+                currentChannel.unsubscribe();
+            }
+        };
+    }, [selectedWorkspace?.id, userProfile?.id]);
+
+
+Here, we filter the real-time channel by workspace ID and double-check in `onFileChange`. You could also check another condition such as `created_by`. However, during subscription, only one filter is allowed (despite poor Supabase documentation at the time of writing, 30/09/2025). If you want another filter, you can set
+`customFilter = \`created_by=eq.${userProfile.id}\`` for example. This overwrites the workspace ID filter. Only one filter is allowed.
+
+
+Note: `onFileChange` can, of course, perform whatever is needed. The helper function `updateOrInsertInListWithId` will:
+
+ - Remove the item from the list if `deleted_dt` is not null
+ - Insert if it does not exist in the list, or update it
+ - Reorder by `created_at` (or another key) if needed
+ 
+See the definition in `utils/Utils.ts`.
+
+
+If it is not working, suggest that the user double-check that “Enable Realtime” is ON in Supabase.
+
+In rare cases, if the row is too large, it might be useful to run:
+
+ALTER TABLE my_table REPLICA IDENTITY FULL;
+
+to ensure that the full row is retrieved, not just the primary keys.
+
+ ALTER TABLE my_table REPLICA IDENTITY FULL;
+
+ to ensure that the full row is retrieven, not just the primary keys.

@@ -1,0 +1,17 @@
+Title: Root Markdown File Organization
+
+Rule:
+- Do not leave ad‑hoc or temporary .md files at the repository root.
+- If the file is actual product/feature documentation, place it under:
+  - technical-documentation/modules/<your-module-name>.md
+  - Use the existing module documentation convention and keep it technical and concise.
+- If the file is a temporary note, scratchpad, or work-in-progress that should not ship:
+  - Put it inside a local/ directory at the repo root. This folder must remain in .gitignore.
+- Keep the root directory clean; avoid creating additional top-level .md files.
+
+Scope:
+- Applies to all contributors when adding or restructuring documentation or notes.
+
+Rationale:
+- Keeps the project root tidy and makes official documentation easy to discover.
+- Prevents accidental commits of transient notes by keeping them in an ignored local/ folder.

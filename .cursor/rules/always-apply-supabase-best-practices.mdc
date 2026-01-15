@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+globs:
+  - "**/*"
+description: Supabase best pratice
+---
+- Never apply migrations directly on production (project-ref = abbyxyhcglvlsxshqdmx), whether via Management Console Portal (MCP) or CLI
+- Store any migration files or SQL files in the `supabase/migrations_made_by_cursor/` folder
+- Do not create any files in the `supabase/migration/` folder - this is reserved for the core migration system

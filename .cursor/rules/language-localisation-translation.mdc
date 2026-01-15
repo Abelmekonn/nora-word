@@ -1,0 +1,22 @@
+---
+alwaysApply: false
+description: How to deal with user facing translation string (localisation)
+---
+
+## Localization (i18n)
+
+Locations:
+- Provider and hooks: `src/contexts/LanguageContext.tsx`
+- Resources: `src/locales/*.json`
+
+### Usage
+```tsx
+import { useLanguage } from "@/contexts/LanguageContext";
+const { t, language, setLanguage } = useLanguage();
+const title = t("modules.crm");
+```
+
+### Notes
+- `t(key)` falls back to English if missing.
+- Normalize DB-localized fields (e.g., `'nl-BE'` -> `'nl'`).
+- Never hard-code user-facing strings.

@@ -1,0 +1,22 @@
+---
+description: Basic rules for RLS and table creation in Supabase
+alwaysApply: false
+---
+
+When you create a table, always include the following (except if explicitly mentioned otherwise):
+
+- "workspace_id" referencing the workspaces table (uuid). It should store the workspace the row belongs to. Even if a table B is linked to a table A itself link to a workspace, it prefferable to add workspace_id in table B as well, even it it creat hyper static link. Indeed, it's really needed for real time chann
+- "created_by" referencing the user_id (auth.user) who made the request
+- "created_at" timestamptz of creation time.
+- "deleted_dt" timestamptz of deletion, null by default
+
+Always create initial RLS linked to the workspace for UPDATE, INSERT, and SELECT. No need for DELETE as we always soft-delete items. The idea is that only users who belong to the workspace can access specific rows. When done, always suggest to the user to modify or enforce better RLS. If any column like `file_path` or URL exists in the DB, please warn the user that if it is uploaded to a bucket, this bucket should be private and RLS should also apply to the bucket (if the goal is to access the file via a signed URL on the fly, not via an edge function).
+
+```
+(EXISTS ( SELECT 1
+   FROM users_workspaces_map uwm
+  WHERE ((uwm.workspace_id = docs_anonymized.workspace_id) AND (uwm.user_id = auth.uid()))))
+```
+
+
+

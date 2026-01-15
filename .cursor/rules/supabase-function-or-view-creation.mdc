@@ -1,0 +1,27 @@
+---
+description: Supabase function or view creation or update
+alwaysApply: false
+---
+
+When creating a Supabase function, always use SECURITY INVOKER. Unless explicitly stated otherwise, users should access rows and tables only if they have the proper RLS permissions. Never create a function with SECURITY DEFINER.
+
+Example:
+
+
+CREATE OR REPLACE FUNCTION public.say_hello(name text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+BEGIN
+RETURN 'Hello ' || name;
+END;
+$$;
+
+
+Example for views
+
+
+CREATE OR REPLACE VIEW public.my_view
+WITH (security_invoker = true) AS
+SELECT …;

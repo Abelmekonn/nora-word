@@ -1,0 +1,14 @@
+---
+description : How to invoke a Supapabse edge function
+alwaysApply: false
+---
+Always invoke an edge function that way :
+
+const { data, error } = await supabase.functions.invoke('my-function-name', {
+              body
+});
+
+Implement relevant try catch + error handling, displaying error (toast or other) to user if needed.
+
+Let's try to pass as few parameters as possible in edge function. Ideally, update the related table in supbabase first and then call the edge function with worksapceId and itemId (documentId, ...). Edge function will retrieve information from db directly, or even pass this id to the data API and the data API will fetch the information itself.
+

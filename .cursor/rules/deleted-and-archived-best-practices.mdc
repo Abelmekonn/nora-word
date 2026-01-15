@@ -1,0 +1,12 @@
+---
+alwaysApply: false
+description : How to handle deletion (soft-delete) and archived item
+---
+
+Each table should include a deleted_dt column (timestamptz) in Supabase. When an item is deleted, set this value to now(). You can use the helper function handleSoftDeleteItem from utils/SupabaseUtils.tsx for this purpose.
+
+Functions such as fetchDocs (in utils/SupabaseUtils.tsx) and updateOrInsertInListWithId (in utils/Utils.tsx) automatically exclude items where deleted_dt is not null, ensuring deleted items are not fetched or updated.
+
+No RLS rules should apply during deletion — for security and backup reasons, we only use soft deletion. Note that users should not be able to restore deleted items.
+
+If you need to allow archiving (so items can later be unarchived), add another column archived_dt (timestamptz) to the table. You can use the helper functions handleArchivedItem and handleUnArchivedItem from utils/SupabaseUtils.tsx to manage this behavior.

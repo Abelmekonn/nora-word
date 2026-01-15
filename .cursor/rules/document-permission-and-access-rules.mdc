@@ -1,0 +1,112 @@
+---
+description: Manage document permission and access (sharing)
+alwaysApply: false
+---
+
+When creating a table that includes documents, please first consider using the table docs_autofills. The contennt is display in the knowledge section.
+
+If not, be sure to create a new table with at least
+
+- workspace_id (uuid)
+- created_by (user id)
+- created_at
+- deleted_dt (soft delete)
+- shared_with_workspace (default true if not explictly mentionned otherwise)
+- shared_with_user_ids (default [])
+
+Optional but recommended field :
+
+status (e.g enumrate file_status)
+type (e.g enumerate fuile_type),
+size_bytes,
+name
+
+It allows re using same helper function, including one important :
+
+fetchDocs (utils/SupabaseUtils.tsx)
+
+async fetchDocs = async ({
+    selectedWorkspaceId,
+    accessibleByUserId,
+    statusList = null,
+    typesList = null,
+    folderId = null,
+    onError = null,
+    onSuccess = null,
+    limit = null,
+    docIds = null,
+    docUniqueNames = null,
+    includeDeleted = false,
+    table = "docs_autofills",
+    fields = "*"
+    }
+    )
+
+where selectedWorkspaceId is current workspace and accessibleByUserId is userProfile.id
+
+The sharing logic is the followning.
+
+- Default shared_with_workspace in db is true
+- User can have access (read and write) to file that are either
+  - shared_with_workspace is false and created_by is accessibleByUserId (aka userProfile.id)
+  - shared_with_workspace is true and (shared_with_user_ids is null / empty [] or the list contains his user id)
+
+Please follow this logic and take example of the src/components/knowledge/ShareDialog.tsx component to manage permission. 
+
+Only the creator can modify access settings. However, viewers and editors (currently under the same conditions, though both roles are implemented separately for future flexibility) can delete, archive, move the document to another folder (if applicable), and generate a sharing link with an expiration date.
+
+Note: For sharing links, if a document has two versions (e.g., an initial document and a processed one), only allow generating a sharing link for the processed version when its status is done, ready, completed, or processed.
+
+Always sort data in a private bucket under bucket_name/workspace_id/created_by_user_id/unique_doc_name and set storage (SELECT UPDATE INSERT) policies so that
+
+((bucket_id = 'my_bucket_name'::text) AND (auth.uid() IN ( SELECT users_workspaces_map.user_id
+   FROM users_workspaces_map
+  WHERE (users_workspaces_map.workspace_id = ("left"(objects.name, (POSITION(('/'::text) IN (objects.name)) - 1)))::uuid))))
+
+
+Note : unique_doc_name can be for example <doc_uuid>__<init_name>.<extension>
+
+
+In general, when fetching document you can also always do like in pages/anonymization/AnonymizeFile.tsx
+
+    const canEdit = (doc) => {
+            return doc.created_by == userProfile?.id || (doc.shared_with_workspace && ((doc.shared_with_user_ids || []).includes(userProfile?.id)) || (doc.shared_with_user_ids || []).length === 0) //default behavior, same as in fetchDocs when setting accessibleByUserId, but you can add many other conditions
+
+    const canView = (doc) => {
+        return doc.created_by == userProfile?.id || (doc.shared_with_workspace && ((doc.shared_with_user_ids || []).includes(userProfile?.id)) || (doc.shared_with_user_ids || []).length === 0) //default behavior, same as in fetchDocs when setting accessibleByUserId, but you can add many other conditions
+    }
+
+    useEffect(() => {
+        const docsWithPermissions = docsAutofillsFiles.map(d => ({
+            ...d,
+            canView: canView(d),
+            canEdit: canEdit(d)
+        }));
+        setDocsAutofillsFiles(docsWithPermissions);
+    }, [docsAutofillsFiles.map(d => d.id).sort().join("")]);
+
+
+  and to update this list in real time you can 
+
+  createRealTimeUpdates(
+            {
+                table: "docs_anonymized",
+                onFileChange: (newRecord) => {
+                    
+                    const isVisible = canView(newRecord);
+                    setDocsAutofillsFiles(prev => (
+                        isVisible
+                            ? updateOrInsertInListWithId(prev, newRecord)
+                            : prev.filter(d => d.id !== newRecord.id)
+                    ));
+                },
+                channelRef,
+                selectedWorkspaceId: selectedWorkspace.id,
+                onSuccess: (channel) => {
+                    currentChannel = channel; // ✅ Store the channel instance when successfully subscribed
+                },
+            }
+        ) 
+
+
+IMPORTANT NOTE : So far, most rls on document table only check for workspace via users_workspaces_map. For the rest, it as to be done on frontend side. Not ideal for now.

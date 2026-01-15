@@ -1,0 +1,43 @@
+{
+  "name": "nora-legal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "sideload": "npx office-addin-debugging start manifest.xml",
+    "validate": "npx office-addin-manifest validate manifest.xml",
+    "validate:dev": "npx office-addin-manifest validate manifests/nora-legal.manifest.dev.xml",
+    "validate:staging": "npx office-addin-manifest validate manifests/nora-legal.manifest.staging.xml",
+    "validate:prod": "npx office-addin-manifest validate manifests/nora-legal.manifest.prod.xml"
+  },
+  "dependencies": {
+    "@microsoft/office-js": "^1.1.94",
+    "@supabase/supabase-js": "^2.49.1",
+    "date-fns": "^4.1.0",
+    "docxtemplater": "^3.67.6",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^0.554.0",
+    "mammoth": "^1.11.0",
+    "pizzip": "^3.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^22.14.0",
+    "@types/office-js": "^1.0.421",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^7.3.0"
+  }
+}

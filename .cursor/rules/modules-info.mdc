@@ -1,0 +1,5 @@
+---
+description: Modules information (title, icon, ...) centralization
+alwaysApply: false
+---
+When working on modules information such as title, icon, image, description, please centralize everything in the file src/modulesInfo.tsx and import all information from there. Never duplicate information such as icon or image so that it's easy to replace, change phrasing, UI, ...

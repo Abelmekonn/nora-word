@@ -1,0 +1,340 @@
+name: Security CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  sast:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint Security Plugin
+        run: |
+          npx eslint . --ext .ts,.tsx --config .eslintrc.security.json --format json --output-file eslint-security-report.json
+        continue-on-error: true
+
+      - name: Upload ESLint Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: eslint-security-report
+          path: eslint-security-report.json
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/react
+            p/typescript
+            p/owasp-top-ten
+          generateSarif: true
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  secret-scanning:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Check for hardcoded API keys
+        run: |
+          echo "Scanning for Google API keys..."
+          if grep -r "AIza[0-9A-Za-z-_]{35}" . --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "::error::Google API key pattern detected!"
+            exit 1
+          fi
+
+          echo "Scanning for exposed environment variables..."
+          if grep -r "process.env.API_KEY" dist/ 2>/dev/null; then
+            echo "::error::API_KEY exposed in build output!"
+            exit 1
+          fi
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate --json > npm-audit-report.json
+        continue-on-error: true
+
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v3
+        with:
+          name: npm-audit-report
+          path: npm-audit-report.json
+
+      - name: Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json-file-output=snyk-report.json
+        continue-on-error: true
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v3
+        with:
+          name: snyk-report
+          path: snyk-report.json
+        if: always()
+
+  security-tests:
+    name: Security Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security tests
+        run: npm test -- --run tests/security/
+        env:
+          CI: true
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: security-tests
+          name: security-coverage
+        if: always()
+
+  build-analysis:
+    name: Production Build Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          GEMINI_API_KEY: dummy_key_for_build
+
+      - name: Analyze build for secrets
+        run: |
+          echo "Checking production build for embedded secrets..."
+
+          if grep -r "GEMINI_API_KEY" dist/; then
+            echo "::error::GEMINI_API_KEY found in production build!"
+            exit 1
+          fi
+
+          if grep -r "process.env.API_KEY" dist/; then
+            echo "::error::process.env.API_KEY reference in production build!"
+            exit 1
+          fi
+
+          echo "Build analysis passed!"
+
+      - name: Check bundle size
+        run: |
+          echo "Bundle size analysis:"
+          du -sh dist/
+          find dist/ -name "*.js" -exec du -h {} \; | sort -h
+
+  authorization-audit:
+    name: Authorization & Data Isolation Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check for user_id filtering
+        run: |
+          echo "Auditing database queries for user isolation..."
+
+          # Check word-history queries
+          if ! grep -A 5 "from('word-history')" services/dataService.ts | grep -q "eq('user_id'"; then
+            echo "::error::CRITICAL: word-history queries missing user_id filter!"
+            exit 1
+          fi
+
+          # Check word-playbooks queries
+          if ! grep -A 5 "from('word-playbooks')" services/dataService.ts | grep -q "eq('user_id'"; then
+            echo "::error::CRITICAL: word-playbooks queries missing user_id filter!"
+            exit 1
+          fi
+
+          # Check word-reference-docs queries
+          if ! grep -A 5 "from('word-reference-docs')" services/dataService.ts | grep -q "eq('user_id'"; then
+            echo "::warning::word-reference-docs queries missing user_id filter!"
+          fi
+
+          echo "Authorization audit passed!"
+
+  dast:
+    name: Dynamic Application Security Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start application
+        run: |
+          npm run preview &
+          npx wait-on http://localhost:4173 --timeout 60000
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: 'http://localhost:4173'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -j'
+          fail_action: false
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: |
+            report_html.html
+            report_json.json
+        if: always()
+
+  security-gate:
+    name: Security Quality Gate
+    needs: [sast, secret-scanning, dependency-scan, security-tests, build-analysis, authorization-audit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check security status
+        run: |
+          if [[ "${{ needs.sast.result }}" == "failure" ]] || \
+             [[ "${{ needs.secret-scanning.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-analysis.result }}" == "failure" ]] || \
+             [[ "${{ needs.authorization-audit.result }}" == "failure" ]]; then
+            echo "::error::Security gate failed! Critical security issues detected."
+            exit 1
+          fi
+
+          echo "✓ Security gate passed!"
+
+      - name: Post security summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scanning | ${{ needs.secret-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Tests | ${{ needs.security-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Analysis | ${{ needs.build-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Authorization Audit | ${{ needs.authorization-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Security Notifications
+    needs: [security-gate]
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'schedule'
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK != ''
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🚨 Security Scan Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Security scan failed for Nora Word*\n\nRepository: ${{ github.repository }}\nBranch: ${{ github.ref }}\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                  }
+                }
+              ]
+            }'
+
+      - name: Create GitHub Issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Security Scan Failed',
+              body: `Security scan failed on ${new Date().toISOString()}\n\n[View workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})`,
+              labels: ['security', 'automated']
+            })

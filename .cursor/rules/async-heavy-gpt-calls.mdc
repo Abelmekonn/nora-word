@@ -1,0 +1,167 @@
+---
+description : Handles large GPT processing via /supabase_generic_gpt_calls/ when Edge Functions are limited by context size, timeout, or quotas
+alwaysApply: false
+---
+
+When certain tasks require GPT calls, they can be handled through an Edge Function. For small amounts of data, the simplest approach is to call OpenAI directly. However, when processing larger content, several limitations arise:
+	•	The context window may be too small
+	•	Even when chunked, Edge Functions have relatively short timeouts
+	•	There can be quota limitations with our GPT plans (especially reagrding tokens / minutes)
+
+To address these issues, it’s best to use a dedicated backend endpoint: /supabase_generic_gpt_calls/ that will properly queued these tasks.
+
+To use this endpoint (explained in detail below), ensure that:
+	•	Your chunked data is stored in an ARRAY of TEXT within a column.
+	•	A row has aldone been inserted with a unique id (UUID), which will be passed to the function.
+	•	You have a status column (or similar) that can be updated to reflect progress.
+	•	You include an empty column to store the final result, which can be of type TEXT, ARRAY of TEXT, or ARRAY of JSONB, depending on the use case.
+    • Using a array as output can be also quite interresting to paginate results on frontend side. To do so, you should call the RPC 
+
+    const { data, error } = await supabase.rpc('get_row_with_sliced_arrays', {
+        p_table: 'public.my_table',
+        p_id: '00000000-0000-0000-0000-000000000000', // ton UUID
+        p_columns_to_slice: ['input', 'output'],       // colonnes à paginer
+        p_offset: 0,
+        p_limit: 10
+    });
+
+if (error) {
+  console.error(error);
+} else {
+  console.log('row:', data.row);
+  console.log('meta:', data.meta); //useful to fetch next offset e.g
+}
+
+
+
+it can be call like this :
+
+    const API_KEY = Deno.env.get("DATA_API_KEY");
+    const ROOT_URL = Deno.env.get("ROOT_URL") || "https://ai-assistant-prod-jybetmkkea-ew.a.run.app";
+
+    const API_URL = `${ROOT_URL}/supabase_generic_gpt_calls/`;
+
+    if (!API_KEY || !API_URL) {
+      return new Response(JSON.stringify({ error: "Missing API configuration" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+    // Generate the final request body
+
+    const final_body = {
+    "client_id" : "uuid of workspace", 
+    "user_id" : "uuid of user",
+    "user_email" : "email of user",
+    "table_name": "my_table",              // Supabase table
+    "row_ids": ["uuid-of-row"],              // Row ids to update
+    "bubble_env": Deno.env.get("ENV_SUPA"),        // Supabase environment key (dev/live)
+    "row_to_process": "input_list_column", // NAME of the Supabase column containing List[str]
+    "row_to_update": "output_column",      // Column name to write the result to
+    "gpt_prompt": "Summarize: <content_chunk>",  // Prompt template, use content_chunk_placeholder below
+    }
+
+    // Example usage: Call the external API with the user ID
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${API_KEY}`,
+      },
+      body: JSON.stringify(final_body),
+    });
+
+    if (!response.ok) {
+        // update object status to error !!!
+      return new Response(
+        JSON.stringify({ error: "External API failed", details: await response.text() }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
+      );
+    }
+
+    const result = await response.json();
+    if (!result["success"]) {
+      return new Response(
+        JSON.stringify({ error: "External API failed", details: await response.text() }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
+      );
+    }
+
+
+
+Purpose of this endpoint and important note : 
+    - Generic worker that reads a row from a Supabase table, applies an LLM prompt to one or many text inputs,
+    and writes the result back to the same row.
+
+    How it works
+    1) Request validation (required fields listed below).
+    2) Optionally queueing via utils.send_batches_to_queue_if_needed; otherwise processed synchronously.
+    3) Marks the target row status as "processing".
+    4) Runs OpenAI calls for each string in `row_to_process`, templating the prompt with `content_chunk_placeholder`.
+    5) Writes results back to Supabase and sets status to "done" on success, or "error" with message on failure.
+
+    Prompt templating and placeholders
+    - The request must include a `gpt_prompt` string. This prompt can contain angle-bracket placeholders that are
+      replaced before calling the LLM.
+      - `content_chunk_placeholder` (default: "<content_chunk>") is mandatory in `gpt_prompt` and is replaced for
+        each item in the list stored in `row_to_process` (e.g., the Nth string of the input array).
+      - Any other placeholder in the form `<column_name>` will be replaced with the value of the corresponding
+        column from the current Supabase row. These columns must exist in the target table schema.
+      - Disallowed placeholders: `<row_to_process>` and `<row_to_update>` cannot be referenced.
+      - Column values are expected to be textual; non-text values may lead to replacement errors.
+
+    Example
+      gpt_prompt: "Summarize for <company_name> (<year>): <content_chunk>"
+      content_chunk_placeholder: "<content_chunk>"
+      Where `company_name` and `year` are columns in `table_name`; for each content chunk, the service builds the
+      final prompt by replacing `<content_chunk>`, `<company_name>`, and `<year>` with the row's values.
+
+    Request body (JSON)
+    {
+    "client_id" : "uuid of workspace", 
+    "user_id" : "uuid of user",
+    "user_email" : "email of user",
+    "table_name": "my_table",              // Supabase table
+    "row_ids": ["uuid-of-row", "uuid-of-row-2"],              // Row ids to update
+    "bubble_env": "supabase-live",        // Supabase environment key (dev/live)
+    "row_to_process": "input_list_column", // NAME of the Supabase column containing List[str]
+    "row_to_update": "output_column",      // Column name to write the result to
+    "gpt_prompt": "Summarize: <content_chunk>",  // Prompt template, use content_chunk_placeholder below
+    "content_chunk_placeholder": "<content_chunk>",     // Placeholder to replace in gpt_prompt (default: <content_chunk>)
+    "gpt_output_format": "json",           // "json" or "text" (default: json)
+    "join_method": "table",                // "table" to store list, or any string used to join texts (e.g., "\n\n"). Default: "table".
+    "status_row": "status",                // Column to mark processing/done/error (default: status)
+    "processing_status": "processing",     // Default: processing
+    "done_status": "done",               // Default: done
+    "error_status": "error",               // Default: error
+    "error_message_column": "error_msg"    // Optional column to store error message
+    }
+
+    Response
+    - Initial HTTP response (enqueue attempt):
+    - On success (queued):
+        {
+        "success": true,
+        "endpoint_call_uuid": "...",
+        "time_sec": 0.12
+        }
+        Note: No DB change at this point and no "updated_object" is returned, it will be done asynchronously.
+
+    - On failure (not queued):
+        {
+        "success": false,
+        "error": "Error message",
+        "endpoint_call_uuid": "...",
+        "time_sec": 0.05
+        }
+        Note: Status in the DB is NOT updated by this endpoint in this case; the caller should set the row status to error.
+
+    - Asynchronous batch processing (what happens later):
+    - On success: the service writes the model outputs to `row_to_update` and sets `status_row = done_status`.
+    - On error during processing: the service sets `status_row = error_status` and, if provided, writes the message to `error_message_column`.
+
+
+    Notes on Supabase behavior
+    - When join_method == "table": we store the list as-is (ARRAY of JSONB or ARRAY of TEXT), expecting the Supabase column to accept ARRAY of JSONB or ARRAY of TEXT.
+    - When join_method is a string (e.g., "\n\n"), we join model outputs into a single string, expecting the Supabase column to accept TEXT.
+    - The endpoint writes intermediate status (processing and always writes error status if an exception occurs.)

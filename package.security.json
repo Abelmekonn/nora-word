@@ -1,0 +1,64 @@
+{
+  "name": "nora-legal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --https",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite --https",
+    "sideload": "npx office-addin-debugging start manifest.xml",
+    "validate": "npx office-addin-manifest validate manifest.xml",
+
+    "security": "npm run security:scan",
+    "security:scan": "./scripts/security-scan.sh",
+    "security:test": "vitest run tests/security/",
+    "security:test:watch": "vitest watch tests/security/",
+    "security:test:ui": "vitest --ui tests/security/",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:audit:fix": "npm audit fix",
+    "security:lint": "eslint . --ext .ts,.tsx --config .eslintrc.security.json",
+    "security:secrets": "grep -r 'AIza[0-9A-Za-z-_]{35}' . --exclude-dir=node_modules --exclude-dir=.git || echo 'No API keys found'",
+    "security:build-check": "npm run build && grep -r 'GEMINI_API_KEY\\|process.env.API_KEY' dist/ && echo 'ERROR: API key in build!' || echo 'Build check passed'",
+
+    "test": "vitest",
+    "test:security": "vitest run tests/security/",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@microsoft/office-js": "^1.1.94",
+    "openai": "^4.73.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.554.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "dompurify": "^3.0.6"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/office-js": "^1.0.421",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+
+    "eslint": "^8.57.0",
+    "eslint-plugin-security": "^1.7.1",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "vitest": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --config .eslintrc.security.json --fix",
+      "vitest related --run"
+    ]
+  }
+}

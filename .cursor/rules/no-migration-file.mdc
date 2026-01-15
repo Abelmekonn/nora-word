@@ -1,0 +1,5 @@
+---
+description: Do not create migration file in supabase/migration.
+alwaysApply: false
+---
+Please don't create a migration file in supabase/migrations folder when performing changes in Supabase tables but rather in supabase/migrations_made_by_cursor instead

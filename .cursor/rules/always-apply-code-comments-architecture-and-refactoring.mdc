@@ -1,0 +1,66 @@
+---
+alwaysApply: true
+globs:
+  - "**/*"
+description: Always Apply Code Comments, Architecture, and Refactoring
+---
+- Add exhaustive comments inside code, especially when creating new functions or components. Clearly indicate whether a piece of code was explicitly requested by the user or a choice you made. If it was your decision, explain the reasoning; if it came from the user's prompt, briefly summarize the relevant part.
+
+- Keep the code clean: remove unused variables or functions unless they are explicitly commented with "DO NOT DELETE". In that case, keep them even if not currently used.
+
+- If a file grows too large (around 1,000+ lines), split it into smaller components. Place the main page component (the one called by `Routes.tsx`) inside `src/pages/*`, and move all other components into `src/components/*`.
+
+## Architecture overview
+
+- Frontend: React + TypeScript (Vite), Tailwind CSS, ShadCN UI components.
+- Project organization: module-based.
+- Backend: Supabase (Postgres, Auth, Storage, Edge Functions).
+- Integrations: Intercom, Microsoft/Google OAuth, Loops (email), ElevenLabs.
+- i18n: Lightweight context with resources in `src/locales/*.json`.
+- Analytics: Events posted to a Supabase edge function and stored in `adoption_analytics_events`.
+
+### Key frontend directories
+
+- `src/components/ui/`: Reusable UI primitives (ShadCN).
+- `src/components/<module>/`: Domain components (e.g., `crm`).
+- `src/pages/<module>/`: Route pages per module.
+- `src/integrations/supabase/`: Typed client and DB types.
+- `src/config/config.ts`: Centralized environment configuration.
+
+### Routing & layout
+
+- Routes are defined in `src/Routes.tsx`; the main shell is `src/Layout.tsx`.
+- Navigation items and module categories are centralized in `src/modulesInfo.tsx`.
+
+### Conventions
+
+- Use `src/config/config.ts` for environment variables; avoid direct `import.meta.env` access elsewhere.
+- All user-facing strings must use the localization hook and be added to `src/locales/<lang_code>.json`:
+
+```tsx
+const { t } = useLanguage();
+// ...
+{String(t("stringKey.stringSubkey"))}
+```
+
+### Error handling
+
+Use the toast hook for error handling, with the "destructive" variant and localized, user-facing strings:
+
+```tsx
+import { useToast } from "@/hooks/use-toast";
+const { t } = useLanguage();
+
+const { toast } = useToast();
+
+toast({
+  title: String(t("errors.genericTitle")),
+  description: String(t("errors.genericDescription")),
+  variant: "destructive",
+});
+
+```
+
+### Fallback and legacy
+
+Unless explicitly stated, do not implement fallback methods or legacy handling. It’s better to throw a clear error with a toast than to silently make the process work — that approach often hides deeper issues that become much harder to debug later.

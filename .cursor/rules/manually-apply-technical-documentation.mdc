@@ -1,0 +1,48 @@
+---
+alwaysApply: false
+---
+description: Technical documentation update
+
+	•	When working on a module (whether in src/pages/module_name/* or src/components/module_name/*) or a edge function (supabase/functions/*) invoked in a module, always refer to the corresponding documentation in technical-documentation/modules/module_name to fully understand its expected behavior.
+	•	Once your edits are complete, update this documentation. It must be technical and detailed, covering:
+  • At the beginning of the file, list all insterresting resources for this module (Supabase table, supabase db function, supabase edge function, supabase secrets (keys only), any other external api urls (data api, n8n, loops, gpt, ...)).
+	•	How the module works
+	•	How the user interacts with it
+	•	All Supabase database interactions (table names, relevant columns, etc.)
+	•	All Supabase Edge Function interactions (inputs/outputs)
+  • Edge case
+  • Security attention point
+  • To do ; What's left to be done (if applicable)
+	•	If the documentation file for the module does not already exist, create a new one in technical-documentation/modules/* using the module name.
+  • To avoid too much  conflict, only modify existing paragraphs if relevant (if existing one are not correct anymore). Better add new paragraphs.
+  • Only update .md file with proper module-name, do not touch to files containing '-legacy'
+
+
+Example (here, for `technical-documentation/modules/auth.md`) :
+
+Route: `src/pages/auth/*`, `src/contexts/AuthContext/*`, `src/components/auth/*`
+
+# Relevant resources:
+- Supabase:
+  - Tables:
+    • auth.users
+    • public.profiles 
+    • public.users_workspaces_map
+    • public.workspaces
+  - Database Functions:
+    • check_email_domain
+  - Triggers:
+    • check_email_domain_trigger (on auth schema)
+  - Edge Functions:
+    • invite-users
+    • signup
+- External APIs:
+  - Loops:
+    • URL: https://app.loops.so/api/v1/transactional
+    • Template IDs: 
+      - cm9yglwo5700tqid0rbaisull
+      - cm9ygijzk62ddrtvz0xqiqdbd
+
+# Technical explanation :
+
+[Your detailed, exhaustive, explanation]

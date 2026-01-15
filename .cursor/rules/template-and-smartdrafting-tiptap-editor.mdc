@@ -1,0 +1,20 @@
+---
+description: Modification on tiptap editor for template and smart drafting
+alwaysApply: false
+---
+
+Both editors should generally follow the same logic and reuse shared components (such as export to Word). When modifying the Tiptap toolbar or the page settings/view of one editor, make sure to update the other as well (and possibly the export-to-DOCX settings too).
+
+The main difference lies in the “clause” and “variable” nodes.
+
+In the template editor:
+	•	The variable node has an id, a text (the variable’s name, see Smart Drafting variable), and an isLibrary boolean (default: false). This last attribute changes the color for library variables.
+	•	The clause node has an id and a text (the clause’s name).
+
+In Smart Drafting:
+	•	The variable node has an id (same as in the initial template), a text (the variable’s value, see Smart Drafting sidebar), and a confidence attribute. This confidence value (also updated when modifying the sidebar) determines the color.
+	•	The clause node has an id (same as in the initial template), a text (the actual content of the clause or its variant), and an approved attribute. This approved attribute also lead to change of color.
+
+In both cases, the editor is tightly linked to the corresponding sidebar to reflect changes and/or drag-and-drop operations of variables and clauses. Idem for color rules, color in text should correspond to sidebar card as much as possible.
+
+Finally, the template editor includes a read-only mode (allowing users to preview a template from the Nora library before uploading it to their own workspace) where all editing actions are disabled. This mode does not exist in Smart Drafting.

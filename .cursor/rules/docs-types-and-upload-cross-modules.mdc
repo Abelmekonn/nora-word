@@ -1,0 +1,49 @@
+---
+description: Handling document upload and indexing, selecting documents from the knowledge base across modules, and best practices for file types
+alwaysApply: false
+---
+
+
+- Central config.ts for document types
+Use the single config file that defines, for each module, the accepted document formats. This file must be the only source of truth — for validation, user-facing error messages, and display of allowed formats.
+Also, always use MAX_FILE_SIZE_MB and TOTAL_MAX_FILE_SIZE_MB (if multiple uploads are allowed) from the config.
+
+- Cross-module uploads and indexing
+If you upload a file into docs_autofills, you must also launch a Docs_Autofill index. Otherwise, it will appear as part of the Knowledge Base (and thus queryable), which can cause backend errors if it hasn’t actually been indexed.
+If the following action requires the file to be fully processed (for example, if you need to query it), you cannot simply upload → index → trigger your task.
+You must launch the workflow (see launch-workflows-after-indexing-documents-in-knowledge) so the action runs only once the files are ready.
+For Smart Processing, no need for full readiness — it can run in parallel. For Smart Drafting, however, the file must be ready because it is queryable.
+Note: the Upload button in the File Selector does not wait for file readiness before proceeding. Keep that in mind
+
+- File Selector rules
+The general File Selector must restrict selectable files to the formats allowed by the module, based on the central config.
+Example: for Anonymization, if only certain doc types are allowed (e.g. .doc and .docx), the selector must restrict both direct uploads and Knowledge selections accordingly (this inconsistency was fixed).
+Currently, only local files (type “file”) are supported. Supabase stores only a one-time expiring link from providers like Google Drive or OneDrive, so the original file cannot be retrieved later. (This is a fix I still need to handle.)
+Now, when using FileSelector, you can add allowMultiple and allowedFileExtensions props.
+
+- Copying documents between modules
+Do not duplicate a document by simply copying a database row or reusing the filepath. The filepath does not include the bucket name.
+Examples:
+	•	A Docs_Autofill file belongs to the docs_autofills bucket.
+	•	An Anonymization file belongs to the anonymization bucket.
+If you copy only the filepath without moving the actual file, the frontend will search in the wrong bucket and fail to load it.
+When duplicating or transferring documents between modules (especially involving Knowledge), physically copy the file from the source bucket (docs_autofills) to the destination bucket (e.g. anonymization) before creating the new record.
+
+- Single vs multiple file uploads
+Keep the behavior consistent between upload and selection.
+If a module allows uploading only one file, the File Selector must also allow selecting only one file.
+A new prop allowMultiple (default true) controls this — for example, Anonymization should set it to false.
+Even if allowing multiple uploads (like in Knowledge) is more user-friendly, it’s not trivial. You must:
+	1.	Upload each file individually to storage via the frontend.
+	2.	Add the corresponding rows to Supabase (one by one or in batch).
+	3.	When triggering the main action (e.g. Anonymization), make a single Edge Function call with the complete list of files — not one call per file.
+
+Before doing this, make sure the backend supports multi-file processing. Otherwise, you’ll spawn one instance per file, and if a user uploads 100 files, it could crash the system.
+
+- Fetching docs from Knowledge
+If you fetch docs or folders from Knowledge (not via the File Selector), always use the helper functions from SupabaseUtils.tsx — namely fetchDocs and fetchFolders.
+These functions automatically handle user permissions, so do not query docs_autofills manually.
+You can specify filters like IDs, status lists, types, or accessibleByUserId.
+For status:
+	•	If the document must be processed (e.g. for a search feature), use statusList = ["ready"].
+	•	If you only need the file itself, you could theoretically fetch also "processing" and "error" statuses (to be tested further).
