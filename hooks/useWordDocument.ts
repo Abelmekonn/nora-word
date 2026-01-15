@@ -68,26 +68,70 @@ export function useWordDocument(): UseWordDocumentResult {
   const [isInWord, setIsInWord] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [officeReady, setOfficeReady] = useState<boolean>(false);
 
   // Interval ref for polling
   const pollingIntervalRef = useRef<number | null>(null);
 
-  // Check if running in Word on mount
+  // Check if running in Word on mount.
+  // IMPORTANT: Office.context is not guaranteed to be populated until Office.onReady() resolves.
   useEffect(() => {
-    const inWord = isRunningInWord();
-    setIsInWord(inWord);
+    let cancelled = false;
 
-    if (!inWord) {
-      setIsLoading(false);
-      setError(
-        "Not running inside Microsoft Word. Please open this add-in from Word."
-      );
-    }
+    const init = async () => {
+      const office = (globalThis as any).Office;
+
+      // If Office.js isn't present, we're definitely not inside Word.
+      if (!office || typeof office.onReady !== "function") {
+        if (cancelled) return;
+        setOfficeReady(false);
+        setIsInWord(false);
+        setIsLoading(false);
+        setError(
+          "Not running inside Microsoft Word. Please open this add-in from Word."
+        );
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const info = await office.onReady();
+        if (cancelled) return;
+
+        setOfficeReady(true);
+
+        // Prefer the host value returned by onReady, fall back to context.
+        const host = info?.host ?? office.context?.host;
+        const inWord = host === office.HostType?.Word;
+
+        setIsInWord(inWord);
+        setError(
+          inWord
+            ? null
+            : "Not running inside Microsoft Word. Please open this add-in from Word."
+        );
+      } catch (e) {
+        console.error("[useWordDocument] Office initialization failed:", e);
+        if (cancelled) return;
+        setOfficeReady(false);
+        setIsInWord(false);
+        setIsLoading(false);
+        setError(
+          "Failed to initialize Office. Please restart Word and try again."
+        );
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fetch document content
   const refreshContent = useCallback(async () => {
-    if (!isRunningInWord()) {
+    if (!officeReady || !isInWord || !isRunningInWord()) {
       return;
     }
 
@@ -103,7 +147,7 @@ export function useWordDocument(): UseWordDocumentResult {
 
   // Fetch selection
   const refreshSelection = useCallback(async () => {
-    if (!isRunningInWord()) {
+    if (!officeReady || !isInWord || !isRunningInWord()) {
       return;
     }
 
@@ -117,7 +161,8 @@ export function useWordDocument(): UseWordDocumentResult {
 
   // Initial load + polling for content/selection changes
   useEffect(() => {
-    if (!isRunningInWord()) {
+    if (!officeReady) return;
+    if (!isInWord || !isRunningInWord()) {
       setIsLoading(false);
       return;
     }
@@ -151,12 +196,12 @@ export function useWordDocument(): UseWordDocumentResult {
         pollingIntervalRef.current = null;
       }
     };
-  }, [refreshContent, refreshSelection]);
+  }, [officeReady, isInWord, refreshContent, refreshSelection]);
 
   // Insert at cursor
   const insertAtCursor = useCallback(
     async (text: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         console.warn("[useWordDocument] Not in Word, cannot insert at cursor");
         return;
       }
@@ -170,13 +215,13 @@ export function useWordDocument(): UseWordDocumentResult {
         setError("Failed to insert text");
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Insert at end
   const insertAtEnd = useCallback(
     async (text: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         console.warn("[useWordDocument] Not in Word, cannot insert at end");
         return;
       }
@@ -189,13 +234,13 @@ export function useWordDocument(): UseWordDocumentResult {
         setError("Failed to insert text at end");
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Replace selection
   const replaceSelection = useCallback(
     async (newText: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         console.warn("[useWordDocument] Not in Word, cannot replace selection");
         return;
       }
@@ -209,13 +254,13 @@ export function useWordDocument(): UseWordDocumentResult {
         setError("Failed to replace selected text");
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Replace entire document
   const replaceDocument = useCallback(
     async (newContent: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         console.warn("[useWordDocument] Not in Word, cannot replace document");
         return;
       }
@@ -228,13 +273,13 @@ export function useWordDocument(): UseWordDocumentResult {
         setError("Failed to replace document content");
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Replace entire document preserving styles
   const replaceDocumentPreservingStyles = useCallback(
     async (newContent: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         console.warn("[useWordDocument] Not in Word, cannot replace document");
         return;
       }
@@ -250,13 +295,13 @@ export function useWordDocument(): UseWordDocumentResult {
         setError("Failed to replace document content");
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Clear selection (UI and Word)
   const clearSelection = useCallback(async () => {
     setSelection("");
-    if (isRunningInWord()) {
+    if (officeReady && isInWord && isRunningInWord()) {
       try {
         await clearSelectionService();
       } catch (e) {
@@ -266,12 +311,12 @@ export function useWordDocument(): UseWordDocumentResult {
         );
       }
     }
-  }, []);
+  }, [officeReady, isInWord]);
 
   // Search and replace in document
   const searchAndReplace = useCallback(
     async (searchText: string, replaceText: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         return 0;
       }
       try {
@@ -283,13 +328,13 @@ export function useWordDocument(): UseWordDocumentResult {
         return 0;
       }
     },
-    [refreshContent]
+    [officeReady, isInWord, refreshContent]
   );
 
   // Search and replace in selection
   const searchAndReplaceInSelection = useCallback(
     async (searchText: string, replaceText: string) => {
-      if (!isRunningInWord()) {
+      if (!officeReady || !isInWord || !isRunningInWord()) {
         return 0;
       }
       try {
@@ -308,7 +353,7 @@ export function useWordDocument(): UseWordDocumentResult {
         return 0;
       }
     },
-    [refreshContent, refreshSelection]
+    [officeReady, isInWord, refreshContent, refreshSelection]
   );
 
   return {
